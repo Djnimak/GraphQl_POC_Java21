@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.poc'
-version = '1.0-SNAPSHOT'
+version = '1.1-SNAPSHOT'
 
 java {
     toolchain {
@@ -25,7 +25,6 @@ repositories {
 }
 
 dependencies {
-    // Use classic Kickstart GraphQL starter (Spring Boot 2.x compatible)
     implementation 'com.graphql-java-kickstart:graphql-spring-boot-starter:11.1.0'
     implementation 'com.graphql-java-kickstart:graphiql-spring-boot-starter:11.1.0'
     implementation 'com.graphql-java-kickstart:graphql-java-tools:11.1.0'
@@ -47,25 +46,6 @@ tasks.named('generateJava') {
     generateClient = true
     generateInterfaces = false
 }
-
-tasks.register('addLombokBuilderToGenerated') {
-    dependsOn generateJava
-    doLast {
-        def generatedDir = layout.buildDirectory.dir("generated/sources/dgs-codegen/main/com/graphql/generated/types")
-        fileTree(generatedDir).matching { include '**/*.java' }.each { file ->
-            def content = file.text
-            if (!content.contains('@Builder')) {
-                content = content.replaceFirst(
-                        /public class (\w+)/,
-                        '@lombok.Builder\npublic class $1'
-                )
-                file.write(content)
-            }
-        }
-    }
-}
-
-compileJava.dependsOn 'addLombokBuilderToGenerated'
 
 sourceSets {
     main {
