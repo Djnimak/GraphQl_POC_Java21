@@ -1,0 +1,4 @@
+rootProject.name = 'GraphQl_POC_Java21'
+include 'application'
+include 'specification'
+

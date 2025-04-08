@@ -1,0 +1,97 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.10'
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+//    id 'com.netflix.dgs.codegen' version '6.0.3'
+    id 'com.netflix.dgs.codegen' version '7.0.3'
+}
+
+group = 'com.poc'
+version = '1.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Use classic Kickstart GraphQL starter (Spring Boot 2.x compatible)
+    implementation 'com.graphql-java-kickstart:graphql-spring-boot-starter:11.1.0'
+    implementation 'com.graphql-java-kickstart:graphiql-spring-boot-starter:11.1.0'
+    implementation 'com.graphql-java-kickstart:graphql-java-tools:11.1.0'
+    implementation 'com.graphql-java:graphql-java-extended-scalars:17.0'
+    implementation(project(":specification"))
+    implementation platform("com.fasterxml.jackson:jackson-bom:2.16.2")
+    implementation 'com.fasterxml.jackson.core:jackson-core'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation('com.netflix.graphql.dgs.codegen:graphql-dgs-codegen-core:7.0.3') {
+        exclude group: 'org.jetbrains.kotlinx', module: 'kotlinx-serialization-json-jvm'
+    }
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+tasks.register('copyGraphqlSchema', Copy) {
+    from(project(":specification").file("src/main/resources/graphql"))
+    into(layout.buildDirectory.dir("generated/schema"))
+}
+
+tasks.named('generateJava') {
+    dependsOn(tasks.named("copyGraphqlSchema"))
+    schemaPaths = ["${layout.buildDirectory.get().asFile}/generated/schema"]
+    packageName = "com.graphql.generated"
+    generateClient = true
+    generateInterfaces = false
+    typeMapping = [
+            "DateTime" : "java.time.OffsetDateTime"
+    ]
+}
+
+tasks.register('addLombokBuilderToGenerated') {
+    dependsOn generateJava
+    doLast {
+        def generatedDir = layout.buildDirectory.dir("generated/sources/dgs-codegen/main/com/graphql/generated/types")
+        fileTree(generatedDir).matching { include '**/*.java' }.each { file ->
+            def content = file.text
+            if (!content.contains('@Builder')) {
+                content = content.replaceFirst(
+                        /public class (\w+)/,
+                        '@lombok.Builder\npublic class $1'
+                )
+                file.write(content)
+            }
+        }
+    }
+}
+
+compileJava.dependsOn 'addLombokBuilderToGenerated'
+
+sourceSets {
+    main {
+        java {
+            srcDir layout.buildDirectory.dir("generated/sources/dgs-codegen/main")
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
