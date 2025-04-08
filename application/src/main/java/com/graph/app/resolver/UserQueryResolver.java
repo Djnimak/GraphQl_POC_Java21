@@ -9,7 +9,7 @@ import java.util.Map;
 
 @Component
 public class UserQueryResolver implements GraphQLQueryResolver {
-    public static final Map<String, User> userDB;
+    protected static final Map<String, User> userDB;
 
     static {
         userDB = new HashMap<>();
